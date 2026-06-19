@@ -75,28 +75,46 @@ async function fetchUSWeather(lat, lon) {
 // PIPELINE: Environment Canada
 async function fetchCanadianWeather(lat, lon) {
   try {
-    // Querying ECCC GeoMet open coordinate sample sets
-    // For local frontend usage, we map to their open data endpoint parameters
-    const boundingBox = `${lon - 0.1},${lat - 0.1},${lon + 0.1},${lat + 0.1}`;
-    const ecUrl = `https://api.weather.gc.ca/collections/swob-realtime/items?bbox=${boundingBox}&limit=1&f=json`;
+    // Querying ECCC GeoMet open data endpoint
+    const boundingBox = `${lon - 0.2},${lat - 0.2},${lon + 0.2},${lat + 0.2}`;
+    const ecUrl = `https://api.weather.gc.ca/collections/swob-realtime/items?bbox=${boundingBox}&limit=5&f=json`;
     
     const response = await fetch(ecUrl);
     const data = await response.json();
     
-    if(data.features && data.features.length > 0) {
-      const properties = data.features[0].properties;
-      // Extract properties (Met values default to km/h or m/s depending on station parameters)
-      let windSpeed = Math.round(properties.wind_spd || properties.wind_speed || 10);
+    if (data.features && data.features.length > 0) {
+      // Find the first feature that actually has a wind speed populated
+      const activeStation = data.features.find(f => f.properties.wind_spd !== null || f.properties.wind_speed !== null) || data.features[0];
+      const properties = activeStation.properties;
+      
+      let windSpeed = Math.round(properties.wind_spd || properties.wind_speed || 15);
       let windGust = Math.round(properties.wind_gst || properties.wind_gust || windSpeed);
       
       evaluateStoplight(windSpeed, windGust);
     } else {
-      // Direct Ottawa/Regional fallback structure if bounding box yields raw station sync delays
-      evaluateStoplight(12, 14); 
+      // Fallback directly to the main live Ottawa airport feed if bounding box drops out
+      fetchOttawaBackup();
     }
   } catch (err) {
-    // Fail-safe default
-    evaluateStoplight(14, 16);
+    fetchOttawaBackup();
+  }
+}
+
+// Live Ottawa Secondary Station Target
+async function fetchOttawaBackup() {
+  try {
+    // Target the main regional Ottawa airport collector ID station
+    const backupUrl = `https://api.weather.gc.ca/collections/swob-realtime/items?id=YOW&f=json`;
+    const response = await fetch(backupUrl);
+    const data = await response.json();
+    const properties = data.properties || data.features[0].properties;
+    
+    let windSpeed = Math.round(properties.wind_spd || 25);
+    let windGust = Math.round(properties.wind_gst || windSpeed);
+    evaluateStoplight(windSpeed, windGust);
+  } catch {
+    // Absolute worst case scenario hard limit warning if internet fails completely
+    evaluateStoplight(32, 48);
   }
 }
 
