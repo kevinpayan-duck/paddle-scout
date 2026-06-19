@@ -1,0 +1,17 @@
+{
+  "short_name": "PaddleScout",
+  "name": "Paddle Scout Weather & Maps",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3120/3120153.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#121212",
+  "theme_color": "#0284c7",
+  "display": "standalone",
+  "orientation": "portrait"
+}
