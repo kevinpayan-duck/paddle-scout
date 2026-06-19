@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- saved from url=(0065)file:///Users/kevinpayan/Downloads/gemini-code-1781884301594.html -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Paddle Scout</title>
-  <link rel="manifest" href="file:///Users/kevinpayan/Downloads/manifest.json">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0284c7">
   <style>
     :root {
@@ -87,7 +87,7 @@
       <button onclick="initiateLocationCheck()">Refresh Context</button>
     </div>
     
-    <div id="stoplight-banner" style="margin-top: 12px;">Updating coordinates...</div>
+    <div id="stoplight-banner" style="margin-top: 12px;">Locating device...</div>
     
     <div class="weather-metrics">
       <div class="metric">Wind: <span id="wind-speed">--</span></div>
@@ -97,9 +97,9 @@
   </div>
 
   <div class="map-container">
-    <iframe src="./index_files/saved_resource.html" allow="geolocation"></iframe>
+    <iframe src="https://paddling.com/embed/locations/" allow="geolocation"></iframe>
   </div>
 
-  <script src="./index_files/app.js"></script>
-
-</body></html>
+  <script src="app.js"></script>
+</body>
+</html>
