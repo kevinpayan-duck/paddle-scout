@@ -1,6 +1,6 @@
 // App State Configuration
 const CONFIG = {
-  USER_AGENT: "PaddleScoutPWA/1.0 (contact@example.com)",
+  USER_AGENT: "PaddleScoutPWA/1.0",
 };
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -19,7 +19,7 @@ function initiateLocationCheck() {
     (position) => {
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
-      determinePipeline(lat, lon);
+      fetchLiveWeather(lat, lon);
     },
     (error) => {
       banner.style.borderLeftColor = "var(--status-red)";
@@ -29,84 +29,36 @@ function initiateLocationCheck() {
   );
 }
 
-function determinePipeline(lat, lon) {
-  // Direct Ottawa region shortcut check 
-  if (lat >= 45.0 && lat <= 46.0 && lon >= -76.5 && lon <= -75.0) {
-    fetchOttawaWeather();
-  } else if (lat >= 49.0 || (lat > 44.0 && lon > -83.0 && lon < -74.0)) {
-    fetchCanadianWeather(lat, lon);
-  } else {
-    fetchUSWeather(lat, lon);
-  }
-}
-
-async function fetchOttawaWeather() {
+// UNBLOCKED PUBLIC WEATHER PIPELINE
+async function fetchLiveWeather(lat, lon) {
   try {
-    // Direct feed targeting the main Ottawa station to avoid geometry search glitches
-    const url = `https://api.weather.gc.ca/collections/swob-realtime/items?id=YOW&f=json`;
+    // Open-Meteo explicitly allows browser access and automatically routes to the nearest local telemetry station
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=wind_speed_10m,wind_gusts_10m&wind_speed_unit=kmh`;
+    
     const response = await fetch(url);
+    if (!response.ok) throw new Error("Network response was not stable");
+    
     const data = await response.json();
     
-    // Fallback checking to parse ECCC open standards cleanly
-    const props = data.properties || (data.features && data.features[0] && data.features[0].properties);
-    
-    if (props) {
-      let windSpeed = Math.round(props.wind_spd || props.wind_speed || 30);
-      let windGust = Math.round(props.wind_gst || props.wind_gust || windSpeed);
+    if (data && data.current) {
+      const windSpeed = Math.round(data.current.wind_speed_10m);
+      const windGust = Math.round(data.current.wind_gusts_10m);
+      
       evaluateStoplight(windSpeed, windGust);
     } else {
-      throw new Error("Station parsing error");
+      throw new Error("Data format unexpected");
     }
-  } catch (err) {
-    // If the server drops the connection, trigger the actual current storm status safely
-    evaluateStoplight(30, 50);
-  }
-}
-
-async function fetchCanadianWeather(lat, lon) {
-  try {
-    const boundingBox = `${lon - 0.25},${lat - 0.25},${lon + 0.25},${lat + 0.25}`;
-    const ecUrl = `https://api.weather.gc.ca/collections/swob-realtime/items?bbox=${boundingBox}&limit=1&f=json`;
-    const response = await fetch(ecUrl);
-    const data = await response.json();
-    
-    if (data.features && data.features.length > 0) {
-      const props = data.features[0].properties;
-      let windSpeed = Math.round(props.wind_spd || props.wind_speed || 15);
-      let windGust = Math.round(props.wind_gst || props.wind_gust || windSpeed);
-      evaluateStoplight(windSpeed, windGust);
-    } else {
-      evaluateStoplight(15, 20);
-    }
-  } catch (err) {
-    fallbackErrorDisplay();
-  }
-}
-
-async function fetchUSWeather(lat, lon) {
-  try {
-    const pointsUrl = `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`;
-    const pointsResponse = await fetch(pointsUrl, { headers: { "User-Agent": CONFIG.USER_AGENT } });
-    const pointsData = await pointsResponse.json();
-    
-    const hourlyUrl = pointsData.properties.forecastHourly;
-    const weatherResponse = await fetch(hourlyUrl, { headers: { "User-Agent": CONFIG.USER_AGENT } });
-    const weatherData = await weatherResponse.json();
-    
-    const currentPeriod = weatherData.properties.periods[0];
-    let rawWind = currentPeriod.windSpeed; 
-    let numericWind = parseInt(rawWind) || 0;
-    let numericGust = currentPeriod.windGust ? parseInt(currentPeriod.windGust) : numericWind;
-    
-    evaluateStoplight(Math.round(numericWind * 1.609), Math.round(numericGust * 1.609));
   } catch (err) {
     fallbackErrorDisplay();
   }
 }
 
 function fallbackErrorDisplay() {
-  document.getElementById('stoplight-banner').innerText = "Data Offline";
-  document.getElementById('advice-box').innerText = "Unable to fetch live telemetry. Cross-reference manually.";
+  document.getElementById('stoplight-banner').style.borderLeftColor = "var(--status-red)";
+  document.getElementById('stoplight-banner').innerText = "Telemetry Offline";
+  document.getElementById('wind-speed').innerText = "--";
+  document.getElementById('wind-gust').innerText = "--";
+  document.getElementById('advice-box').innerText = "Unable to bypass security rules. Cross-reference local wind data manually before launching.";
 }
 
 function evaluateStoplight(wind, gust) {
